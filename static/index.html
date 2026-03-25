@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anagram Quest — Word Guessing Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #f0f4ff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-pink: #ec4899;
+            --gradient-main: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            --shadow-glow: 0 0 30px rgba(59, 130, 246, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+
+        /* Two-column game layout */
+        .game-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+        .right-panel {
+            position: sticky;
+            top: 20px;
+        }
+
+        /* Level History — Horizontal 5-column table */
+        .level-history {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: var(--shadow-glow);
+            position: sticky;
+            top: 20px;
+        }
+        .level-history h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .lh-table {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+        .lh-col {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            min-height: 120px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .lh-col.active { border-color: var(--accent-blue); box-shadow: 0 0 10px rgba(59,130,246,0.25); }
+        .lh-col.complete { border-color: rgba(16,185,129,0.5); }
+        .lh-col.has-failed { border-color: rgba(245,158,11,0.5); }
+        .lh-col-header {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.7rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            width: 100%;
+        }
+        .lh-col-header .lh-num { display: block; color: var(--text-muted); font-size: 0.8rem; }
+        .lh-col-header .lh-num.active { color: var(--accent-blue); }
+        .lh-col-header .lh-num.complete { color: var(--accent-green); }
+        .lh-col-header .lh-letters { display: block; color: var(--text-muted); font-size: 0.6rem; opacity: 0.7; margin-top: 2px; }
+        .lh-word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+        .lh-word {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            padding: 3px 5px;
+            border-radius: 5px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lh-word.found { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .lh-word.missed {
+            background: rgba(255,255,255,0.03);
+            color: var(--text-muted);
+            border: 1px dashed rgba(255,255,255,0.12);
+        }
+        .lh-word.active-slot {
+            background: rgba(59,130,246,0.08);
+            color: var(--accent-blue);
+            border: 1px dashed rgba(59,130,246,0.25);
+        }
+        .lh-bank-info {
+            text-align: center;
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(139,92,246,0.08);
+            border: 1px solid rgba(139,92,246,0.2);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--accent-purple);
+        }
+
+        /* Bank Panel — below level history */
+        .bank-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(139,92,246,0.25);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 12px;
+            box-shadow: 0 0 20px rgba(139,92,246,0.1);
+        }
+        .bank-panel h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-purple);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .bank-panel .bank-count {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-purple);
+            margin-bottom: 10px;
+        }
+        .bank-nodes {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .bank-node {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+        .bank-node .node-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent-amber);
+            box-shadow: 0 0 6px rgba(245,158,11,0.4);
+            flex-shrink: 0;
+        }
+        .bank-node .node-line {
+            width: 20px; height: 2px;
+            background: linear-gradient(90deg, var(--accent-amber), rgba(245,158,11,0.2));
+            flex-shrink: 0;
+        }
+        .bank-node .node-label {
+            color: var(--accent-amber); font-weight: 600;
+        }
+        .bank-node .node-count {
+            margin-left: auto;
+            color: var(--text-muted);
+        }
+        .bank-node-action {
+            margin-left: auto;
+            padding: 3px 10px;
+            background: rgba(139,92,246,0.15);
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 6px;
+            color: var(--accent-purple);
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bank-node-action:hover {
+            background: rgba(139,92,246,0.3);
+            transform: scale(1.05);
+        }
+
+        /* Bank Choice Modal */
+        .bank-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .bank-modal {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(139,92,246,0.2);
+            animation: slideUp 0.3s;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .bank-modal h3 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .bank-modal p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        .bank-modal-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .bank-modal-btn {
+            padding: 14px;
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .bank-modal-btn:hover {
+            border-color: var(--accent-purple);
+            background: rgba(139,92,246,0.1);
+            transform: translateX(4px);
+        }
+        .bank-modal-btn .btn-emoji {
+            font-size: 1.2rem;
+            margin-right: 8px;
+        }
+        .bank-modal-btn .btn-desc {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 3px;
+        }
+
+        /* Bank Panel Action Buttons */
+        .bank-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .bank-action-btn {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+            text-align: center;
+        }
+        .bank-action-btn.recover-btn {
+            background: rgba(245,158,11,0.1);
+            border-color: rgba(245,158,11,0.3);
+            color: var(--accent-amber);
+        }
+        .bank-action-btn.recover-btn:hover {
+            background: rgba(245,158,11,0.2);
+            transform: translateY(-1px);
+        }
+        .bank-action-btn.boost-btn {
+            background: rgba(59,130,246,0.1);
+            border-color: rgba(59,130,246,0.3);
+            color: var(--accent-blue);
+        }
+        .bank-action-btn.boost-btn:hover {
+            background: rgba(59,130,246,0.2);
+            transform: translateY(-1px);
+        }
+        .bank-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0 20px;
+        }
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 900;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+        .header p { color: var(--text-secondary); margin-top: 6px; font-size: 0.95rem; }
+
+        /* Glass Card */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-box {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .stat-box:hover { border-color: var(--accent-blue); }
+        .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 6px; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; }
+        .stat-value.level { color: var(--accent-blue); }
+        .stat-value.words { color: var(--accent-green); }
+        .stat-value.attempts { color: var(--accent-amber); }
+        .stat-value.bank { color: var(--accent-purple); }
+        .stat-value.score { color: var(--accent-pink); }
+        .stat-value.failed { color: var(--accent-red); }
+
+        /* Level Progress */
+        .level-progress {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .level-dot {
+            width: 48px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.5s;
+        }
+        .level-dot.complete { background: var(--accent-green); box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+        .level-dot.active { background: var(--accent-blue); box-shadow: 0 0 12px rgba(59,130,246,0.5); animation: pulse-dot 2s infinite; }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Letter Tiles */
+        .tiles-section { text-align: center; margin: 20px 0; }
+        .tiles-section h3 { color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+        .letter-tiles {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .letter-tile {
+            width: 58px;
+            height: 64px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            animation: tile-pop 0.4s ease-out;
+            transition: all 0.2s;
+        }
+        .letter-tile:hover { transform: translateY(-3px); border-color: var(--accent-blue); }
+
+        @keyframes tile-pop {
+            0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+            60% { transform: scale(1.1) rotateY(0deg); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Found Words */
+        .found-words {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            min-height: 36px;
+            margin: 12px 0;
+        }
+        .found-tag {
+            background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.1));
+            border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-green);
+            animation: tag-slide 0.3s ease-out;
+        }
+        @keyframes tag-slide { from { transform: translateY(10px); opacity: 0; } }
+
+        /* Failed Words */
+        .failed-words { margin-top: 8px; }
+        .failed-tag {
+            background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-red);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .failed-tag:hover { border-color: var(--accent-red); background: rgba(239,68,68,0.2); }
+        .failed-tag.clickable::after { content: ' 🔄'; font-size: 0.7rem; }
+
+        /* Input Area */
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .guess-input {
+            background: var(--bg-glass);
+            border: 2px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            width: 280px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .guess-input:focus { border-color: var(--accent-blue); box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+        .guess-input::placeholder { color: var(--text-muted); text-transform: none; letter-spacing: normal; font-size: 0.9rem; }
+
+        /* Buttons */
+        .btn {
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-guess {
+            background: var(--gradient-main);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+        }
+        .btn-guess:hover:not(:disabled) { box-shadow: 0 6px 25px rgba(59,130,246,0.5); }
+
+        .btn-start {
+            background: var(--gradient-main);
+            color: white;
+            font-size: 1.1rem;
+            padding: 18px 50px;
+            box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+        }
+        .btn-start:hover { box-shadow: 0 8px 35px rgba(59,130,246,0.5); }
+
+        .btn-restart {
+            background: rgba(255,255,255,0.08);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            padding: 10px 20px;
+            font-size: 0.8rem;
+        }
+        .btn-restart:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+
+        /* Message */
+        .message-box {
+            text-align: center;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            margin-top: 16px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        .message-box.info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: var(--accent-blue); }
+        .message-box.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: var(--accent-green); }
+        .message-box.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: var(--accent-red); }
+        .message-box.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--accent-amber); }
+        .message-box.bonus { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); color: var(--accent-purple); }
+
+        /* Welcome Screen */
+        .welcome {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .welcome h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 20px; }
+        .welcome p { color: var(--text-secondary); max-width: 500px; margin: 0 auto 30px; line-height: 1.7; }
+
+        /* Rules */
+        .rules {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .rules h4 { color: var(--accent-blue); margin-bottom: 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .rules ul { list-style: none; }
+        .rules li { padding: 5px 0; color: var(--text-secondary); font-size: 0.85rem; }
+        .rules li::before { content: '▸ '; color: var(--accent-purple); font-weight: bold; }
+        .rules .reward { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .rules .reward.pos { color: var(--accent-green); }
+        .rules .reward.neg { color: var(--accent-red); }
+        .rules .reward.bonus { color: var(--accent-purple); }
+
+        /* Game Over */
+        .game-over {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .game-over h2 {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+        .game-over .final-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 700;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 16px 0;
+        }
+
+        /* Reward popup */
+        .reward-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 100;
+            animation: reward-float 1.2s ease-out forwards;
+        }
+        .reward-popup.positive { color: var(--accent-green); text-shadow: 0 0 30px rgba(16,185,129,0.5); }
+        .reward-popup.negative { color: var(--accent-red); text-shadow: 0 0 30px rgba(239,68,68,0.5); }
+
+        @keyframes reward-float {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            30% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -120%) scale(1); }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .game-layout { grid-template-columns: 1fr; }
+            .right-panel { position: static; }
+            .level-history { position: static; }
+        }
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.8rem; }
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .letter-tile { width: 48px; height: 54px; font-size: 1.4rem; }
+            .guess-input { width: 200px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔤 Anagram Quest</h1>
+            <p>Unscramble letters • Find all words • Master 5 levels</p>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="card welcome">
+            <h2>Ready to Play?</h2>
+            <p>You'll receive scrambled letters and must find ALL valid English words that can be formed from them. Progress through 5 levels of increasing difficulty!</p>
+
+            <div class="rules">
+                <h4>📋 Rules & Rewards</h4>
+                <ul>
+                    <li>Find ALL anagram words — guess in any order!</li>
+                    <li>4 wrong guesses per level — use them wisely</li>
+                    <li>Correct guess: <span class="reward pos">+1.0</span> (or +0.5 after wrong guesses)</li>
+                    <li>Right letters, not a word: <span class="reward pos">+0.1</span></li>
+                    <li>Wrong guess: <span class="reward neg">-0.1</span></li>
+                    <li>All words in level: <span class="reward bonus">+2.0 bonus</span></li>
+                    <li>Perfect game (all 5 levels): <span class="reward bonus">+5.0 bonus</span></li>
+                </ul>
+            </div>
+            <div class="rules">
+                <h4>🏦 Banking System (Level 3+)</h4>
+                <ul>
+                    <li>Guess correctly on 1st attempt → <span class="reward bonus">+1 banked chance</span></li>
+                    <li>Click a failed word to spend a banked chance and recover it</li>
+                    <li>Strategy: should you bank chances or play safe?</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-start" onclick="startGame()">🚀 Start Game</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" style="display:none;">
+            <!-- Level Progress -->
+            <div class="level-progress">
+                <div class="level-dot" id="ldot-1"></div>
+                <div class="level-dot" id="ldot-2"></div>
+                <div class="level-dot" id="ldot-3"></div>
+                <div class="level-dot" id="ldot-4"></div>
+                <div class="level-dot" id="ldot-5"></div>
+            </div>
+
+            <!-- Two-column layout -->
+            <div class="game-layout">
+                <!-- LEFT: Game Panel -->
+                <div class="game-panel">
+                    <!-- Stats -->
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <div class="stat-label">Level</div>
+                            <div class="stat-value level" id="stat-level">1</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Remaining</div>
+                            <div class="stat-value words" id="stat-remaining">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Guesses Left</div>
+                            <div class="stat-value attempts" id="stat-attempts">4</div>
+                        </div>
+
+                        <div class="stat-box">
+                            <div class="stat-label">Score</div>
+                            <div class="stat-value score" id="stat-score">0.0</div>
+                        </div>
+                    </div>
+
+                    <!-- Letter Tiles -->
+                    <div class="card">
+                        <div class="tiles-section">
+                            <h3>Scrambled Letters</h3>
+                            <div class="letter-tiles" id="letter-tiles"></div>
+                        </div>
+
+                        <!-- Found Words -->
+                        <div class="tiles-section">
+                            <h3 style="margin-top:20px;">Words Found</h3>
+                            <div class="found-words" id="found-words"></div>
+                        </div>
+
+                        <!-- Input -->
+                        <div class="input-area">
+                            <input type="text" id="guess-input" class="guess-input" placeholder="Type your guess..." autocomplete="off" />
+                            <button class="btn btn-guess" id="guess-btn" onclick="submitGuess()">Guess</button>
+                        </div>
+
+                        <!-- Message -->
+                        <div class="message-box info" id="message-box">Press Start to begin!</div>
+                    </div>
+
+                    <!-- Restart -->
+                    <div style="text-align:center; margin-top:12px;">
+                        <button class="btn btn-restart" onclick="startGame()">🔄 Restart Game</button>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Level History + Bank Panel -->
+                <div class="right-panel">
+                    <div class="level-history" id="level-history">
+                        <h3>📊 Level History</h3>
+                        <div class="lh-table" id="lh-table"></div>
+                        <div class="lh-bank-info" id="lh-bank-info" style="display:none;">
+                            🏦 <span id="lh-bank-count">0</span> banked chance(s)
+                        </div>
+                    </div>
+
+                    <!-- Bank Panel — hidden until L3 -->
+                    <div class="bank-panel" id="bank-panel" style="display:none;">
+                        <h4>🏦 Bank</h4>
+                        <div class="bank-count" id="bank-count">0</div>
+                        <div class="bank-nodes" id="bank-nodes"></div>
+                        <div class="bank-actions" id="bank-actions" style="display:none;">
+                            <button class="bank-action-btn recover-btn" id="bank-recover-btn" onclick="bankRecoverFailed()" style="display:none;">
+                                🔙 Recover Failed Word
+                            </button>
+                            <button class="bank-action-btn boost-btn" id="bank-boost-btn" onclick="bankBoostCurrent()">
+                                ⚡ Boost Current Level (+2)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" style="display:none;" class="card game-over">
+            <h2 id="gameover-title">🎉 Game Complete!</h2>
+            <div class="final-score" id="final-score">0.0</div>
+            <p style="color:var(--text-secondary); margin-bottom:6px;" id="gameover-msg"></p>
+            <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:24px;" id="gameover-failed"></p>
+            <button class="btn btn-start" onclick="startGame()">🔁 Play Again</button>
+        </div>
+
+        <!-- Bank Choice Modal (on earning) -->
+        <div class="bank-modal-overlay" id="bank-modal" style="display:none;">
+            <div class="bank-modal">
+                <h3>🏦 Bank Chance Earned!</h3>
+                <p>How would you like to use it?</p>
+                <div class="bank-modal-btns">
+                    <button class="bank-modal-btn" onclick="bankDecision('preserve')">
+                        <span class="btn-emoji">🏦</span> Preserve
+                        <span class="btn-desc">Save to your bank — spend later to recover failed words or boost a level</span>
+                    </button>
+                    <button class="bank-modal-btn" onclick="bankDecision('current')">
+                        <span class="btn-emoji">⚡</span> Add to Current (+2 guesses)
+                        <span class="btn-desc">Get 2 extra guesses for this level right now</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recover Level Select Modal -->
+        <div class="bank-modal-overlay" id="recover-modal" style="display:none;">
+            <div class="bank-modal">
+                <h3>🔙 Recover Failed Word</h3>
+                <p>Which level would you like to recover a word from?</p>
+                <div class="bank-modal-btns" id="recover-modal-btns"></div>
+                <button class="bank-modal-btn" style="margin-top:10px; text-align:center;" onclick="document.getElementById('recover-modal').style.display='none'">
+                    <span class="btn-emoji">❌</span> Cancel
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            Anagram Quest — OpenEnv Word Guessing Environment
+        </div>
+    </div>
+
+    <script>
+        // ─── State ───
+        let totalScore = 0;
+        let currentLevel = 1;
+        let completedLevels = new Set();
+        let gameActive = false;
+        let levelResults = [];  // from metadata
+
+        // ─── Elements ───
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const guessInput = document.getElementById('guess-input');
+        const guessBtn = document.getElementById('guess-btn');
+
+        // ─── API ───
+        async function apiReset() {
+            const res = await fetch('/api/reset', { method: 'POST' });
+            return await res.json();
+        }
+
+        async function apiStep(action) {
+            const res = await fetch('/api/step', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action }),
+            });
+            return await res.json();
+        }
+
+        // ─── Game Flow ───
+        async function startGame() {
+            totalScore = 0;
+            completedLevels = new Set();
+            levelResults = [];
+            gameActive = true;
+
+            welcomeScreen.style.display = 'none';
+            gameoverScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+
+            try {
+                const data = await apiReset();
+                updateUI(data);
+                guessInput.value = '';
+                guessInput.focus();
+            } catch (err) {
+                showMessage('Failed to connect to server. Is it running?', 'error');
+            }
+        }
+
+        async function submitGuess() {
+            if (!gameActive) return;
+            const guess = guessInput.value.trim().toUpperCase();
+            if (!guess) return;
+
+            guessBtn.disabled = true;
+            guessInput.value = '';
+
+            try {
+                const data = await apiStep({ word_guess: guess });
+                const reward = data.reward || 0;
+                totalScore += reward;
+
+                updateUI(data);
+                showRewardPopup(reward);
+
+                if (data.done) {
+                    gameActive = false;
+                    setTimeout(() => showGameOver(data), 1200);
+                }
+            } catch (err) {
+                showMessage('Connection error!', 'error');
+            }
+
+            guessBtn.disabled = false;
+            guessInput.focus();
+        }
+
+        async function useBankOn(word) {
+            if (!gameActive) return;
+
+            try {
+                const data = await apiStep({ use_bank_on: word });
+                const reward = data.reward || 0;
+                totalScore += reward;
+                updateUI(data);
+                showRewardPopup(reward);
+            } catch (err) {
+                showMessage('Connection error!', 'error');
+            }
+        }
+
+        async function bankDecision(choice) {
+            document.getElementById('bank-modal').style.display = 'none';
+            try {
+                const data = await apiStep({ bank_decision: choice });
+                const reward = data.reward || 0;
+                totalScore += reward;
+                updateUI(data);
+                showRewardPopup(reward);
+            } catch (err) {
+                showMessage('Connection error!', 'error');
+            }
+            guessInput.focus();
+        }
+
+        // ─── UI ───
+        function updateUI(data) {
+            const obs = data.observation || data;
+            const meta = obs.metadata || data.metadata || {};
+
+            // Update level results from metadata
+            if (meta.level_results) {
+                levelResults = meta.level_results;
+            }
+
+            // Level
+            currentLevel = obs.current_level || 1;
+            document.getElementById('stat-level').textContent = currentLevel;
+
+            // Update level dots
+            for (let i = 1; i <= 5; i++) {
+                const dot = document.getElementById(`ldot-${i}`);
+                dot.className = 'level-dot';
+                if (i < currentLevel) { dot.classList.add('complete'); completedLevels.add(i); }
+                else if (i === currentLevel && !data.done) dot.classList.add('active');
+            }
+
+            // Stats (bank removed from row — now in side panel)
+            document.getElementById('stat-remaining').textContent = obs.words_remaining ?? 0;
+            document.getElementById('stat-attempts').textContent = obs.attempts_left_for_word ?? 0;
+            document.getElementById('stat-score').textContent = totalScore.toFixed(1);
+
+            // Bank choice modal
+            if (meta.bank_choice_pending) {
+                document.getElementById('bank-modal').style.display = 'flex';
+            }
+
+            // Bank panel (show from L3+)
+            updateBankPanel(obs);
+
+            // Letter tiles
+            const tilesDiv = document.getElementById('letter-tiles');
+            tilesDiv.innerHTML = '';
+            (obs.scrambled_letters || []).forEach((letter, i) => {
+                const tile = document.createElement('div');
+                tile.className = 'letter-tile';
+                tile.textContent = letter;
+                tile.style.animationDelay = `${i * 0.1}s`;
+                tilesDiv.appendChild(tile);
+            });
+
+            // Found words
+            const foundDiv = document.getElementById('found-words');
+            foundDiv.innerHTML = '';
+            (obs.words_found || []).forEach(w => {
+                const tag = document.createElement('span');
+                tag.className = 'found-tag';
+                tag.textContent = w;
+                foundDiv.appendChild(tag);
+            });
+
+            // Level History panel
+            updateLevelHistory(obs);
+
+            // Message
+            const msg = obs.message || data.message || '';
+            let msgType = 'info';
+            if (msg.includes('Correct')) msgType = 'success';
+            else if (msg.includes('Wrong') || msg.includes('not a valid') || msg.includes('wrong length') || msg.includes('Out of guesses') || msg.includes('not a valid anagram')) msgType = 'error';
+            else if (msg.includes('Already')) msgType = 'warn';
+            else if (msg.includes('Bank') || msg.includes('banked') || msg.includes('bonus')) msgType = 'bonus';
+            showMessage(msg, msgType);
+        }
+
+        function updateLevelHistory(obs) {
+            const table = document.getElementById('lh-table');
+            table.innerHTML = '';
+            const bankCount = obs.banked_chances || 0;
+
+            for (let lvl = 1; lvl <= 5; lvl++) {
+                const result = levelResults.find(r => r.level === lvl);
+                const isActive = lvl === currentLevel && !obs.done;
+                const isCompleted = result != null;
+
+                // Column container
+                const col = document.createElement('div');
+                col.className = 'lh-col';
+                if (isActive) col.classList.add('active');
+                else if (isCompleted) {
+                    col.classList.add(result.failed_count === 0 ? 'complete' : 'has-failed');
+                }
+
+                // Column header
+                const header = document.createElement('div');
+                header.className = 'lh-col-header';
+                const numSpan = document.createElement('span');
+                numSpan.className = 'lh-num' + (isActive ? ' active' : isCompleted ? ' complete' : '');
+                numSpan.textContent = `L${lvl}`;
+                const letSpan = document.createElement('span');
+                letSpan.className = 'lh-letters';
+                letSpan.textContent = `${lvl + 2} ltr`;
+                header.appendChild(numSpan);
+                header.appendChild(letSpan);
+                col.appendChild(header);
+
+                // Word list
+                const wordList = document.createElement('div');
+                wordList.className = 'lh-word-list';
+
+                if (isCompleted) {
+                    result.found.forEach(w => {
+                        const s = document.createElement('div');
+                        s.className = 'lh-word found';
+                        s.textContent = w;
+                        wordList.appendChild(s);
+                    });
+                    for (let i = 0; i < result.failed_count; i++) {
+                        const s = document.createElement('div');
+                        s.className = 'lh-word missed';
+                        s.textContent = '???';
+                        wordList.appendChild(s);
+                    }
+                } else if (isActive) {
+                    (obs.words_found || []).forEach(w => {
+                        const s = document.createElement('div');
+                        s.className = 'lh-word found';
+                        s.textContent = w;
+                        wordList.appendChild(s);
+                    });
+                    for (let i = 0; i < (obs.words_remaining || 0); i++) {
+                        const s = document.createElement('div');
+                        s.className = 'lh-word active-slot';
+                        s.textContent = '···';
+                        wordList.appendChild(s);
+                    }
+                }
+
+                col.appendChild(wordList);
+                table.appendChild(col);
+            }
+
+            // Bank info
+            const bankInfo = document.getElementById('lh-bank-info');
+            if (bankCount > 0) {
+                bankInfo.style.display = 'block';
+                document.getElementById('lh-bank-count').textContent = bankCount;
+            } else {
+                bankInfo.style.display = 'none';
+            }
+        }
+
+        function updateBankPanel(obs) {
+            const panel = document.getElementById('bank-panel');
+            const bankCount = obs.banked_chances || 0;
+
+            // Only show bank panel from Level 3+
+            if (currentLevel < 3 && bankCount === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            document.getElementById('bank-count').textContent = bankCount;
+
+            // Build node connections to failed levels
+            const nodesDiv = document.getElementById('bank-nodes');
+            nodesDiv.innerHTML = '';
+
+            // Count failures per level from levelResults
+            const failedByLevel = {};
+            levelResults.forEach(r => {
+                if (r.failed_count > 0) {
+                    failedByLevel[r.level] = r.failed_count;
+                }
+            });
+
+            const failedLevels = Object.keys(failedByLevel);
+            if (failedLevels.length === 0) {
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:center; font-size:0.75rem; color:var(--text-muted); padding:8px;';
+                msg.textContent = 'No failed words yet';
+                nodesDiv.appendChild(msg);
+            } else {
+                failedLevels.forEach(lvl => {
+                    const count = failedByLevel[lvl];
+                    const node = document.createElement('div');
+                    node.className = 'bank-node';
+                    node.innerHTML = `
+                        <span class="node-dot"></span>
+                        <span class="node-line"></span>
+                        <span class="node-label">L${lvl}</span>
+                        <span class="node-count">${count} ???</span>
+                    `;
+                    nodesDiv.appendChild(node);
+                });
+            }
+
+            // Show/hide action buttons
+            const actionsDiv = document.getElementById('bank-actions');
+            const recoverBtn = document.getElementById('bank-recover-btn');
+            const boostBtn = document.getElementById('bank-boost-btn');
+
+            if (bankCount > 0 && gameActive) {
+                actionsDiv.style.display = 'flex';
+                // Show recover if there are failed levels
+                recoverBtn.style.display = failedLevels.length > 0 ? 'block' : 'none';
+                boostBtn.style.display = 'block';
+            } else {
+                actionsDiv.style.display = 'none';
+            }
+        }
+
+        async function bankBoostCurrent() {
+            try {
+                const data = await apiStep({ bank_decision: 'boost_current' });
+                const reward = data.reward || 0;
+                totalScore += reward;
+                updateUI(data);
+                showRewardPopup(reward);
+            } catch(e) {
+                showMessage('Error boosting: ' + e, 'error');
+            }
+        }
+
+        function bankRecoverFailed() {
+            // Build list of failed levels
+            const failedByLevel = {};
+            levelResults.forEach(r => {
+                if (r.failed_count > 0) {
+                    failedByLevel[r.level] = r;
+                }
+            });
+            const failedLevels = Object.keys(failedByLevel);
+
+            if (failedLevels.length === 0) {
+                showMessage('No failed words to recover!', 'error');
+                return;
+            }
+
+            if (failedLevels.length === 1) {
+                // Only one failed level — use bank directly
+                useBankOnLevel(failedLevels[0]);
+            } else {
+                // Multiple failed levels — show popup to choose
+                showRecoverPopup(failedByLevel);
+            }
+        }
+
+        function showRecoverPopup(failedByLevel) {
+            const modal = document.getElementById('recover-modal');
+            const btnsDiv = document.getElementById('recover-modal-btns');
+            btnsDiv.innerHTML = '';
+
+            Object.keys(failedByLevel).forEach(lvl => {
+                const result = failedByLevel[lvl];
+                const count = result.failed_count;
+                const letters = result.letters ? result.letters.join(', ') : '';
+                const btn = document.createElement('button');
+                btn.className = 'bank-modal-btn';
+                btn.innerHTML = `
+                    <span class="btn-emoji">📝</span> Level ${lvl} (${count} word${count > 1 ? 's' : ''} missed)
+                    <span class="btn-desc">Letters: ${letters}</span>
+                `;
+                btn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    useBankOnLevel(lvl);
+                });
+                btnsDiv.appendChild(btn);
+            });
+
+            modal.style.display = 'flex';
+        }
+
+        async function useBankOnLevel(level) {
+            try {
+                const res = await fetch('/api/step', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ use_bank_on: String(level) })
+                });
+                const data = await res.json();
+                const obs = data.observation;
+                if (obs.metadata) {
+                    levelResults = obs.metadata.level_results || levelResults;
+                }
+                updateUI(obs);
+                updateLevelHistory(obs);
+                updateBankPanel(obs);
+
+                // Check if recovery challenge started
+                if (obs.metadata && obs.metadata.recovery_pending) {
+                    showRecoveryChallengePopup(obs.metadata.recovery_pending);
+                } else {
+                    showMessage(obs.message, 'info');
+                }
+            } catch(e) {
+                showMessage('Error recovering: ' + e, 'error');
+            }
+        }
+
+        function showRecoveryChallengePopup(recovery) {
+            const modal = document.getElementById('recover-modal');
+            const modalInner = modal.querySelector('.bank-modal');
+            const h3 = modalInner.querySelector('h3');
+            const p = modalInner.querySelector('p');
+            const btnsDiv = document.getElementById('recover-modal-btns');
+
+            h3.textContent = '🔍 Recovery Challenge!';
+            p.textContent = `Unscramble the missed word from Level ${recovery.level}:`;
+            btnsDiv.innerHTML = '';
+
+            // Show scrambled letters
+            const lettersDiv = document.createElement('div');
+            lettersDiv.style.cssText = 'display:flex;gap:8px;justify-content:center;margin:15px 0;';
+            recovery.letters.forEach(l => {
+                const tile = document.createElement('span');
+                tile.textContent = l;
+                tile.style.cssText = 'width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--primary);color:white;border-radius:8px;font-weight:700;font-size:1.2rem;';
+                lettersDiv.appendChild(tile);
+            });
+            btnsDiv.appendChild(lettersDiv);
+
+            // Input field
+            const inputWrap = document.createElement('div');
+            inputWrap.style.cssText = 'margin:15px 0;';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'recovery-guess-input';
+            input.placeholder = 'Type your guess...';
+            input.maxLength = recovery.letters.length;
+            input.style.cssText = 'width:100%;padding:12px;background:rgba(255,255,255,0.1);border:2px solid var(--primary);border-radius:10px;color:white;font-size:1.1rem;text-align:center;text-transform:uppercase;letter-spacing:3px;box-sizing:border-box;';
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitRecoveryGuess();
+            });
+            inputWrap.appendChild(input);
+            btnsDiv.appendChild(inputWrap);
+
+            // Buttons row
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+            const guessBtn = document.createElement('button');
+            guessBtn.className = 'bank-modal-btn';
+            guessBtn.innerHTML = '<span class="btn-emoji">✅</span> Submit Guess';
+            guessBtn.style.flex = '1';
+            guessBtn.addEventListener('click', submitRecoveryGuess);
+            btnRow.appendChild(guessBtn);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'bank-modal-btn';
+            cancelBtn.style.cssText = 'flex:1;background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);';
+            cancelBtn.innerHTML = '<span class="btn-emoji">❌</span> Cancel';
+            cancelBtn.addEventListener('click', async () => {
+                modal.style.display = 'none';
+                // Refund: cancel recovery on backend
+                try {
+                    const res = await fetch('/api/step', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bank_decision: 'cancel_recovery' })
+                    });
+                    const data = await res.json();
+                    const obs = data.observation;
+                    if (obs.metadata) levelResults = obs.metadata.level_results || levelResults;
+                    updateUI(obs);
+                    updateLevelHistory(obs);
+                    updateBankPanel(obs);
+                    showMessage(obs.message, 'info');
+                } catch(e) {}
+            });
+            btnRow.appendChild(cancelBtn);
+            btnsDiv.appendChild(btnRow);
+
+            // Hide the static cancel button in recover-modal
+            const staticCancel = modalInner.querySelector('button[onclick]');
+            if (staticCancel) staticCancel.style.display = 'none';
+
+            modal.style.display = 'flex';
+            setTimeout(() => input.focus(), 100);
+        }
+
+        async function submitRecoveryGuess() {
+            const input = document.getElementById('recovery-guess-input');
+            if (!input) return;
+            const guess = input.value.trim().toUpperCase();
+            if (!guess) return;
+
+            const modal = document.getElementById('recover-modal');
+            modal.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/step', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recovery_guess: guess })
+                });
+                const data = await res.json();
+                const obs = data.observation;
+                if (obs.metadata) {
+                    levelResults = obs.metadata.level_results || levelResults;
+                }
+                updateUI(obs);
+                updateLevelHistory(obs);
+                updateBankPanel(obs);
+
+                const reward = data.reward || 0;
+                const isCorrect = reward > 0;
+                showMessage(obs.message, isCorrect ? 'correct' : 'wrong');
+                showRewardPopup(reward);
+            } catch(e) {
+                showMessage('Error submitting recovery guess: ' + e, 'error');
+            }
+        }
+
+        function showMessage(msg, type = 'info') {
+            const box = document.getElementById('message-box');
+            box.textContent = msg;
+            box.className = `message-box ${type}`;
+        }
+
+        function showRewardPopup(reward) {
+            if (reward === 0) return;
+            const popup = document.createElement('div');
+            popup.className = `reward-popup ${reward > 0 ? 'positive' : 'negative'}`;
+            popup.textContent = (reward > 0 ? '+' : '') + reward.toFixed(1);
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 1300);
+        }
+
+        function showGameOver(data) {
+            gameScreen.style.display = 'none';
+            gameoverScreen.style.display = 'block';
+
+            const obs = data.observation || {};
+            const meta = obs.metadata || data.metadata || {};
+            const failedCount = (meta.failed_count || 0);
+
+            document.getElementById('final-score').textContent = totalScore.toFixed(1);
+
+            if (failedCount === 0) {
+                document.getElementById('gameover-title').textContent = '🏆 Perfect Game!';
+                document.getElementById('gameover-msg').textContent = 'All 5 levels cleared with no failures! Incredible!';
+                document.getElementById('gameover-failed').textContent = '';
+            } else {
+                document.getElementById('gameover-title').textContent = '🎉 Game Complete!';
+                document.getElementById('gameover-msg').textContent = `You completed the game with ${failedCount} missed word(s).`;
+                document.getElementById('gameover-failed').textContent = '';
+            }
+        }
+
+        // ─── Keyboard ───
+        guessInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') submitGuess();
+        });
+    </script>
+</body>
+</html>
