@@ -1,20 +1,22 @@
----
-title: Anagram Quest — Word Guessing Environment
-emoji: 🔤
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
-app_port: 8000
-tags:
-  - openenv
----
-
 # 🔤 Anagram Quest — Word Guessing Environment
 
-An RL-ready word guessing environment with 5 progressive difficulty levels, a strategic banking system, and dense reward shaping. Built with the OpenEnv framework for the Meta × PyTorch Hackathon 2026.
+An RL-ready anagram word-guessing environment with 5 progressive difficulty levels, a strategic banking system, and dense reward shaping. Built with the [OpenEnv](https://github.com/openenv) framework.
 
-**👉 Open this Space to play the interactive game directly in your browser!**
+<p align="center">
+  <a href="https://ailanidivyansh-word-guessing-env.hf.space/web"><b>🎮 Play Live on Hugging Face</b></a>
+</p>
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/welcome.png" alt="Welcome Screen" width="700" />
+</p>
+<p align="center"><em>Welcome screen with rules and banking system overview</em></p>
+
+<p align="center">
+  <img src="docs/gameplay.png" alt="Gameplay" width="700" />
+</p>
+<p align="center"><em>Gameplay — Level 1: unscramble N-G-U, 2 words found, level history tracker on the right</em></p>
 
 ## Game Overview
 
@@ -40,16 +42,16 @@ An RL-ready word guessing environment with 5 progressive difficulty levels, a st
 
 ## Quick Start
 
-### Play in Browser
+### 🎮 Play in Browser
 
-Open this Hugging Face Space — the interactive game UI loads automatically.
+**[→ Play Anagram Quest Live](https://ailanidivyansh-word-guessing-env.hf.space/web)** — no install needed, runs directly in your browser.
 
-### Use as RL Environment
+### 🤖 Use as RL Environment
 
 ```python
 from word_guessing_env import WordGuessingAction, WordGuessingEnv
 
-with WordGuessingEnv(base_url="<HF_SPACE_URL>") as env:
+with WordGuessingEnv(base_url="https://ailanidivyansh-word-guessing-env.hf.space") as env:
     result = env.reset()
     print(f"Level {result.observation.current_level}")
     print(f"Letters: {result.observation.scrambled_letters}")
@@ -62,7 +64,7 @@ with WordGuessingEnv(base_url="<HF_SPACE_URL>") as env:
     result = env.step(WordGuessingAction(use_bank_on="3"))
 ```
 
-### Run Locally
+### 🏠 Run Locally
 
 ```bash
 # Install dependencies
@@ -109,18 +111,21 @@ Each observation contains:
 ## Project Structure
 
 ```
-word_guessing_env/
-├── README.md              # This file
+anagram-quest-openenv/
+├── README.md
 ├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Dependencies
-├── models.py              # Action & Observation Pydantic models
-├── client.py              # WordGuessingEnv client
+├── pyproject.toml          # Dependencies
+├── models.py               # Action & Observation Pydantic models
+├── client.py               # WordGuessingEnv client
+├── docs/
+│   ├── welcome.png         # Welcome screen screenshot
+│   └── gameplay.png        # Gameplay screenshot
 ├── static/
-│   └── index.html         # Interactive game UI
+│   └── index.html          # Interactive game UI
 └── server/
     ├── word_guessing_env_environment.py  # Core game logic
-    ├── app.py             # FastAPI server + game API
-    └── Dockerfile         # Container image
+    ├── app.py               # FastAPI server + game API
+    └── Dockerfile           # Container image
 ```
 
 ## API Endpoints
@@ -135,6 +140,14 @@ word_guessing_env/
 | `/ws` | WS | WebSocket for persistent sessions |
 | `/docs` | GET | Swagger API docs |
 | `/health` | GET | Health check |
+
+## Tech Stack
+
+- **Backend**: FastAPI + uvicorn
+- **Environment**: OpenEnv framework (compatible with RL agents)
+- **Frontend**: Vanilla HTML/CSS/JS with glassmorphism dark UI
+- **Deployment**: Docker → Hugging Face Spaces
+- **Game Data**: 95+ curated anagram word groups across 5 difficulty levels
 
 ## Team
 
