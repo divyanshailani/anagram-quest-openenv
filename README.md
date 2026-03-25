@@ -138,7 +138,7 @@ word_guessing_env/
 
 ## Team
 
-Built by **Yash & Divyansh** for the Meta × PyTorch OpenEnv Hackathon 2026.
+Built by **Yash & Divyansh**
 
 ## Contributors
 
