@@ -2,6 +2,10 @@
 
 An RL-ready anagram word-guessing environment with 5 progressive difficulty levels, a strategic banking system, and dense reward shaping. Built with the [OpenEnv](https://github.com/openenv) framework.
 
+> This repository is **Part 1 (Environment Foundation)** of the larger Anagram Quest system.
+>
+> Master repository (full architecture + journey): **[divyanshailani/anagram-quest](https://github.com/divyanshailani/anagram-quest)**
+
 <p align="center">
   <a href="https://ailanidivyansh-word-guessing-env.hf.space/web"><b>🎮 Play Live on Hugging Face</b></a>
 </p>
@@ -114,18 +118,18 @@ Each observation contains:
 anagram-quest-openenv/
 ├── README.md
 ├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml          # Dependencies
-├── models.py               # Action & Observation Pydantic models
-├── client.py               # WordGuessingEnv client
+├── pyproject.toml         # Dependencies
+├── models.py              # Action & Observation Pydantic models
+├── client.py              # WordGuessingEnv client
 ├── docs/
-│   ├── welcome.png         # Welcome screen screenshot
-│   └── gameplay.png        # Gameplay screenshot
+│   ├── welcome.png        # Welcome screen screenshot
+│   └── gameplay.png       # Gameplay screenshot
 ├── static/
-│   └── index.html          # Interactive game UI
+│   └── index.html         # Interactive game UI
 └── server/
     ├── word_guessing_env_environment.py  # Core game logic
-    ├── app.py               # FastAPI server + game API
-    └── Dockerfile           # Container image
+    ├── app.py             # FastAPI server + game API
+    └── Dockerfile         # Container image
 ```
 
 ## API Endpoints
